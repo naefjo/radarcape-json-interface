@@ -42,7 +42,7 @@ func main() {
 
 	go ProcessAircraftData(aircraft_data_channel, config, midnight_ticker)
 
-	go UploadFilesToGDrive(midnight_ticker)
+	// go UploadFilesToGDrive(midnight_ticker)
 
 	logger.Println("main: Started the radarcape listener.")
 	logger.Println(

@@ -11,7 +11,4 @@ func UploadFilesToGDrive(ticker *MidnightTicker) {
 	// - Block until a channel signals that we are ready
 	// - Iterate through all the files of the last day in the file tree
 	// - Send files to drive
-	for range ticker.Uploader_tick_chan {
-
-	}
 }

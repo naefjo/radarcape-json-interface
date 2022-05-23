@@ -20,7 +20,8 @@ type Config struct {
 
 // Load configuration file from disk.
 //
-// The Config file is in the .yaml file format and contains info about which aircrafts are relevant to the study.
+// The Config file is in the .yaml file format and contains info about
+// which aircrafts are relevant to the study.
 func (config *Config) LoadConfiguration(file string) {
 
 	// config_ptr := new(Config)
@@ -46,8 +47,8 @@ func (config *Config) LoadConfiguration(file string) {
 
 }
 
-// This struct implements the structure of the received json data and stores the information of
-// one aircraft at a certain time.
+// This struct implements the structure of the received json data
+// and stores the information of one aircraft at a certain time.
 type AircraftData struct {
 	Alr  int     `json:"alr"`
 	Alt  int     `json:"alt"`
@@ -91,7 +92,8 @@ type AircraftData struct {
 	Wsp  int     `json:"wsp"`
 }
 
-// Get the name of the fields of the AircraftData struct as a slice of strings.
+// Get the name of the fields of the AircraftData struct as a
+// slice of strings.
 func (ac_data AircraftData) GetHeadersAsList() []string {
 	// Based on https://stackoverflow.com/a/67608475
 	t := reflect.TypeOf(ac_data)
@@ -103,7 +105,8 @@ func (ac_data AircraftData) GetHeadersAsList() []string {
 	return aircraft_data_struct_field_names
 }
 
-// Get the values of the fields of the AircraftData struct as a slice of strings.
+// Get the values of the fields of the AircraftData struct as a
+// slice of strings.
 func (ac_data AircraftData) GetDataAsList() []string {
 	// Based on https://stackoverflow.com/a/67608475
 	v := reflect.ValueOf(ac_data)
@@ -115,13 +118,8 @@ func (ac_data AircraftData) GetDataAsList() []string {
 	return aircraft_data_struct_field_names
 }
 
-// HttpGetterConfig wraps the config parameters for the receiver goroutine.
-type HttpGetterConfig struct {
-	Module_config_ptr *Config
-	Ticker            *time.Ticker
-}
-
-// Wrapper struct to ensure files are properly closed once the csv.Writer is not needed anymore.
+// Wrapper struct to ensure files are properly closed once the csv.Writer
+// is not needed anymore.
 type CsvWriteCloser struct {
 	*csv.Writer
 	io.Closer
@@ -133,7 +131,6 @@ type CsvWriteCloser struct {
 // the logi in the background and the other tickers will not be incremented anymore.
 type MidnightTicker struct {
 	Processor_tick_chan <-chan time.Time
-	Uploader_tick_chan  <-chan time.Time
 	halt                chan<- struct{} // singal channel to indicate that all the
 	// channels should be closed.
 }
@@ -147,16 +144,15 @@ type MidnightTicker struct {
 func NewMidnightTicker() *MidnightTicker {
 
 	mn_ticker_chan1 := make(chan time.Time, 1)
-	mn_ticker_chan2 := make(chan time.Time, 1)
 	mn_halt_chan := make(chan struct{})
 
 	mn_ticker := &MidnightTicker{
 		Processor_tick_chan: mn_ticker_chan1,
-		Uploader_tick_chan:  mn_ticker_chan2,
 		halt:                mn_halt_chan,
 	}
 
-	// Spin up goroutine which makes sure that the midnight tickers roll over at midnight.
+	// Spin up goroutine which makes sure that the midnight
+	// tickers roll over at midnight.
 	go func() {
 		// Set up a timer which expires at midnight.
 		curr_time := time.Now()
@@ -171,23 +167,21 @@ func NewMidnightTicker() *MidnightTicker {
 				),
 			),
 		)
-		// midnight_timer := time.NewTimer(10 * time.Second)
 		defer midnight_timer.Stop()
 
-		// Blocking function which waits until either the timer expires or a
-		// halt signal is sent to the MidnightTicker.
+		// Blocking function which waits until either the timer
+		// expires or a halt signal is sent to the MidnightTicker.
 		err := func() error {
 			select {
 			case timer_time := <-midnight_timer.C:
 				mn_ticker_chan1 <- timer_time
-				mn_ticker_chan2 <- timer_time
 				return nil
 
 			case <-mn_halt_chan:
-				// midnight_timer does not need to be stopped since we return
-				// from the goroutine and the stop has been deferred.
+				// midnight_timer does not need to be stopped since
+				// we return from the goroutine and the stop has
+				// been deferred.
 				close(mn_ticker_chan1)
-				close(mn_ticker_chan2)
 				return errors.New("ticker has been halted early")
 			}
 		}()
@@ -200,26 +194,25 @@ func NewMidnightTicker() *MidnightTicker {
 		}
 
 		// Set up a ticker which triggers every 24 hours.
-		// ticker_24hrs := time.NewTicker(10 * time.Second)
 		ticker_24hrs := time.NewTicker(24 * time.Hour)
 		defer ticker_24hrs.Stop()
 
-		// Every time the ticker fires, we send the item to the MidnightTicker channels.
+		// Every time the ticker fires, we send the item to the
+		// MidnightTicker channels.
 		for {
 			select {
 			case ticker_time := <-ticker_24hrs.C:
 				mn_ticker_chan1 <- ticker_time
-				mn_ticker_chan2 <- ticker_time
 
 				if DEBUG {
 					logger.Println("init: ticker rolled over.")
 				}
 
 			case <-mn_halt_chan:
-				// ticker_24hrs does not need to be stopped since we return from the
-				// goroutine and the stop has been deferred.
+				// ticker_24hrs does not need to be stopped since
+				// we return from the goroutine and the stop has
+				// been deferred.
 				close(mn_ticker_chan1)
-				close(mn_ticker_chan2)
 				return
 			}
 		}

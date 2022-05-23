@@ -24,6 +24,7 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 
 	http_client := &http.Client{}
 
+	// Hash map (i.e. Dict) where we store the most up to date message of each ICAO address.
 	last_received_messages := make(map[string]AircraftData)
 
 	aircraftlist_url := "http://" + config.Radarcape_hostname + "/aircraftlist.json"
@@ -32,13 +33,16 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 
 	for range ticker.C { // Block until new ticker update is received
 
-		aircraft_list, err := HttpRequest(http_client, aircraftlist_url)
+		// Query the radarcape for a new json containing aircraft data.
+		aircraft_list, err := RequestAircrafList(http_client, aircraftlist_url)
 
-		// Check if the reported error is due to a read timeout.
+		// TODO(@naefjo): Debug if statement.
 		if err != nil {
 			timeout_err, ok := err.(*url.Error)
 			logger.Println(timeout_err, ok, timeout_err.Timeout(), timeout_err.Temporary())
+
 		}
+		// Check if the reported error is due to a read timeout.
 		if timeout_err, ok := err.(*url.Error); ok && timeout_err.Timeout() {
 			logger.Println("GetAircraftsFromHttp: Read timeout. skipping this loop iteration.")
 			continue
@@ -49,6 +53,7 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 			continue
 		}
 
+		// Send aircraft data to the processor goroutine.
 		for _, aircraft := range aircraft_list {
 			// Check whether aircraft type is of interest to us and if we already received this
 			// identical message.
@@ -66,7 +71,7 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 // Wrapper function for opening of the http request.
 //
 // Makes sure that resources are released properly.
-func HttpRequest(http_client *http.Client, aircraftlist_url string) (aircraft_list []AircraftData, err error) {
+func RequestAircrafList(http_client *http.Client, aircraftlist_url string) (aircraft_list []AircraftData, err error) {
 	resp, err := http_client.Get(aircraftlist_url)
 
 	if err != nil {

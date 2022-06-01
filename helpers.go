@@ -2,11 +2,14 @@
 package main
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"os/signal"
 	"os/user"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // Helper function to check whether a string is present in a slice of strings.
@@ -30,6 +33,22 @@ func getAppBasePath() string {
 
 	folder_path := username.HomeDir + "/Desktop/Radarcape_listener/"
 	return strings.ReplaceAll(folder_path, "\\", "/")
+}
+
+func getDataFolder(date time.Time) string {
+	return getAppBasePath() + "Data/" + date.Format(dateFormatString) + "/"
+}
+
+// Create a folder at a given path but do not return an error if the paht alread exists.
+func createFolder(folder_path string) error {
+	err := os.MkdirAll(folder_path, os.ModePerm)
+
+	// If we get an error apart from `Folder already Exists` we break the execution.
+	if !errors.Is(err, fs.ErrExist) && err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Close interrupt handler

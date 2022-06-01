@@ -7,7 +7,6 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"time"
 )
@@ -17,7 +16,7 @@ import (
 // This Goroutine receives data from the receiver goroutine and saves the data to the corresponding
 // output file. If the CsvGenerationLogic goroutine has generated a new set of CSV writers (due to
 // date change), the old csv files are closed and we continue to write into the new csvs.
-func ProcessAircraftData(aircraft_data_chan <-chan AircraftData, config Config, ticker *MidnightTicker) {
+func ProcessAircraftData(aircraft_data_chan <-chan AircraftData, config Config, ticker *TimeTicker) {
 	aircraft_occurence_map := make(map[string]int)
 
 	csv_writers_chan := make(chan map[string]CsvWriteCloser)
@@ -62,7 +61,7 @@ func ProcessAircraftData(aircraft_data_chan <-chan AircraftData, config Config, 
 // generated. We first set a timer which block the execution of the goroutine until next
 // midnight. Then, we enter the "normal" operating mode where we instantiate a ticker which
 // ticks over every 24 hours, triggering the generation of new csv files.
-func CsvGenerationLogic(csv_writers_chan chan map[string]CsvWriteCloser, config Config, ticker *MidnightTicker) {
+func CsvGenerationLogic(csv_writers_chan chan map[string]CsvWriteCloser, config Config, ticker *TimeTicker) {
 
 	csv_writers_chan <- GenerateCsvWriters(time.Now(), config.Icao_aircraft_types)
 
@@ -86,11 +85,11 @@ func GenerateCsvWriters(date time.Time, aircrafts []string) map[string]CsvWriteC
 
 	csv_writers := make(map[string]CsvWriteCloser, len(aircrafts))
 
-	folder_path := getAppBasePath() + "Data/" + date.Format(dateFormatString) + "/"
+	folder_path := getDataFolder(date)
 
-	err := os.MkdirAll(folder_path, os.ModePerm)
-	// If we get an error apart from `Folder already Exists` we break the execution.
-	if !errors.Is(err, fs.ErrExist) && err != nil {
+	err := createFolder(folder_path)
+
+	if err != nil {
 		logger.Fatal(err)
 	}
 

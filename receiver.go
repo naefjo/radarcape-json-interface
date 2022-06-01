@@ -7,7 +7,6 @@ package main
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -36,19 +35,8 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 		// Query the radarcape for a new json containing aircraft data.
 		aircraft_list, err := RequestAircrafList(http_client, aircraftlist_url)
 
-		// TODO(@naefjo): Debug if statement.
-		if err != nil {
-			timeout_err, ok := err.(*url.Error)
-			logger.Println(timeout_err, ok, timeout_err.Timeout(), timeout_err.Temporary())
-
-		}
 		// Check if the reported error is due to a read timeout.
-		if timeout_err, ok := err.(*url.Error); ok && timeout_err.Timeout() {
-			logger.Println("GetAircraftsFromHttp: Read timeout. skipping this loop iteration.")
-			continue
-		} else if err != nil {
-			// TODO(@naefjo): For the moment, just log the error and retry so we can catch all the errors
-			// that could occur.
+		if err != nil {
 			logger.Println(err)
 			continue
 		}

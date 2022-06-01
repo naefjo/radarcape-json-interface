@@ -25,7 +25,6 @@ var logger *log.Logger = log.New(os.Stderr, "Radarcape_listener: ", log.LstdFlag
 // Entry point for the program. Instantiate all relevant variables and launch all
 // goroutines.
 func main() {
-
 	cfg_filepath := getAppBasePath() + "radarcape_listener_config.yaml"
 
 	config := Config{}
@@ -36,13 +35,14 @@ func main() {
 	ticker_2hz := time.NewTicker(500 * time.Millisecond)
 	defer ticker_2hz.Stop()
 
-	midnight_ticker := NewMidnightTicker()
+	midnight_ticker := NewTimeTicker(0, 0, 10)
+	three_am_ticker := NewTimeTicker(3, 0, 0)
 
 	go GetAircraftsFromHttp(aircraft_data_channel, config, ticker_2hz)
 
 	go ProcessAircraftData(aircraft_data_channel, config, midnight_ticker)
 
-	// go UploadFilesToGDrive(midnight_ticker)
+	go UploadFilesToSharedFolder(config, three_am_ticker)
 
 	logger.Println("main: Started the radarcape listener.")
 	logger.Println(

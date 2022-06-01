@@ -14,8 +14,9 @@ import (
 
 // Config struct implements and groups the config parameters of this module.
 type Config struct {
-	Icao_aircraft_types []string
-	Radarcape_hostname  string
+	Icao_aircraft_types []string `yaml:"icao_aircraft_types"`
+	Radarcape_hostname  string   `yaml:"radarcape_hostname"`
+	Upload_folder_path  string   `yaml:"upload_folder_path"`
 }
 
 // Load configuration file from disk.
@@ -126,62 +127,61 @@ type CsvWriteCloser struct {
 }
 
 // Wrapper for the timer and tickers used for synchronisation of the goroutines.
-//
-// NOTE(@naefjo): If you do not use all the provided timers, the unused one will block
-// the logi in the background and the other tickers will not be incremented anymore.
-type MidnightTicker struct {
+type TimeTicker struct {
 	Processor_tick_chan <-chan time.Time
 	halt                chan<- struct{} // singal channel to indicate that all the
 	// channels should be closed.
 }
 
-// Wrapper function which instantiates and initializes the MidnightTicker struct.
+// Wrapper function which instantiates and initializes the TimeTicker struct.
 //
 // Inside the function we spin up a goroutine which runs in the background and sends
-// time stamps from a timer and a ticker to the MidnightTicker channels.
+// time stamps from a timer and a ticker to the TimeTicker channels.
 // This allows us to conveniently use the provided channels without having to worry
 // about the logic which is needed to fire the tickers at the right time.
-func NewMidnightTicker() *MidnightTicker {
+func NewTimeTicker(hour, minute, second int) *TimeTicker {
 
-	mn_ticker_chan1 := make(chan time.Time, 1)
-	mn_halt_chan := make(chan struct{})
+	time_ticker_chan1 := make(chan time.Time, 1)
+	time_halt_chan := make(chan struct{})
 
-	mn_ticker := &MidnightTicker{
-		Processor_tick_chan: mn_ticker_chan1,
-		halt:                mn_halt_chan,
+	time_ticker := &TimeTicker{
+		Processor_tick_chan: time_ticker_chan1,
+		halt:                time_halt_chan,
 	}
 
-	// Spin up goroutine which makes sure that the midnight
-	// tickers roll over at midnight.
+	// Spin up goroutine which makes sure that the
+	// tickers roll over at the specified time.
 	go func() {
-		// Set up a timer which expires at midnight.
+		// Set up a timer which expires at specified time on the next day.
 		curr_time := time.Now()
-		midnight_timer := time.NewTimer(
+
+		// time.Date normalizes dates (e.g. Oct. 32 == Nov. 1).
+		time_timer := time.NewTimer(
 			time.Until(
 				time.Date(
 					curr_time.Year(),
 					curr_time.Month(),
 					curr_time.Day()+1,
-					0, 0, 10, 0,
+					hour, minute, second, 0,
 					curr_time.Location(),
 				),
 			),
 		)
-		defer midnight_timer.Stop()
+		defer time_timer.Stop()
 
 		// Blocking function which waits until either the timer
 		// expires or a halt signal is sent to the MidnightTicker.
 		err := func() error {
 			select {
-			case timer_time := <-midnight_timer.C:
-				mn_ticker_chan1 <- timer_time
+			case timer_time := <-time_timer.C:
+				time_ticker_chan1 <- timer_time
 				return nil
 
-			case <-mn_halt_chan:
-				// midnight_timer does not need to be stopped since
+			case <-time_halt_chan:
+				// time_timer does not need to be stopped since
 				// we return from the goroutine and the stop has
 				// been deferred.
-				close(mn_ticker_chan1)
+				close(time_ticker_chan1)
 				return errors.New("ticker has been halted early")
 			}
 		}()
@@ -198,35 +198,35 @@ func NewMidnightTicker() *MidnightTicker {
 		defer ticker_24hrs.Stop()
 
 		// Every time the ticker fires, we send the item to the
-		// MidnightTicker channels.
+		// TimeTicker channels.
 		for {
 			select {
 			case ticker_time := <-ticker_24hrs.C:
-				mn_ticker_chan1 <- ticker_time
+				time_ticker_chan1 <- ticker_time
 
 				if DEBUG {
 					logger.Println("init: ticker rolled over.")
 				}
 
-			case <-mn_halt_chan:
+			case <-time_halt_chan:
 				// ticker_24hrs does not need to be stopped since
 				// we return from the goroutine and the stop has
 				// been deferred.
-				close(mn_ticker_chan1)
+				close(time_ticker_chan1)
 				return
 			}
 		}
 	}()
 
-	return mn_ticker
+	return time_ticker
 }
 
 // Close the channels of the ticker.
 //
-// Send a signal to the goroutine which is spun up in the NewMidnightTicker
+// Send a signal to the goroutine which is spun up in the NewTimeTicker
 // function which stops the underlying timer/ticker and closes the ticker
-// channels of the MidnightTicker struct.
-func (ticker *MidnightTicker) Stop() {
+// channels of the TimeTicker struct.
+func (ticker *TimeTicker) Stop() {
 	ticker.halt <- struct{}{}
 	defer close(ticker.halt)
 }

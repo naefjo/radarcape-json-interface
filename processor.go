@@ -25,7 +25,7 @@ func ProcessAircraftData(aircraft_data_chan <-chan AircraftData, config Config, 
 
 	csv_writers := <-csv_writers_chan
 
-	logger.Println("ProcessAircraftData: Started worker goroutine")
+	logger.Println("ProcessAircraftData: Successfully started worker goroutine.")
 
 	for {
 		select {
@@ -81,7 +81,9 @@ func CsvGenerationLogic(csv_writers_chan chan map[string]CsvWriteCloser, config 
 // a new one with the relevant header. We wrap the csv writer and the file in a `CsvWriteCloser` struct
 // in order to close the file properly after writing to it.
 func GenerateCsvWriters(date time.Time, aircrafts []string) map[string]CsvWriteCloser {
-	logger.Println("GenerateCsvWriters: Generating CSV files")
+	if DEBUG {
+		logger.Println("GenerateCsvWriters: Generating CSV files")
+	}
 
 	csv_writers := make(map[string]CsvWriteCloser, len(aircrafts))
 
@@ -123,6 +125,6 @@ func GenerateCsvWriters(date time.Time, aircrafts []string) map[string]CsvWriteC
 		}
 	}
 
-	logger.Println("GenerateCsvWriters: CSV files generated.")
+	logger.Println("GenerateCsvWriters: New CSV files generated.")
 	return csv_writers
 }

@@ -42,7 +42,12 @@ func main() {
 
 	go ProcessAircraftData(aircraft_data_channel, config, midnight_ticker)
 
-	go UploadFilesToSharedFolder(config, three_am_ticker)
+	if config.Upload_folder_path != "" {
+		go UploadFilesToSharedFolder(config, three_am_ticker)
+	} else {
+		logger.Println("main: 'upload_folder_path' not specified in config yaml file.",
+			"Saving the data locally.")
+	}
 
 	logger.Println("main: Started the radarcape listener.")
 	logger.Println(

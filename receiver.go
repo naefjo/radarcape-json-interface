@@ -28,7 +28,7 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 
 	aircraftlist_url := "http://" + config.Radarcape_hostname + "/aircraftlist.json"
 
-	logger.Println("GetAircraftsFromHttp: Started receiver goroutine.")
+	logger.Println("GetAircraftsFromHttp: Successfully started receiver goroutine.")
 
 	for range ticker.C { // Block until new ticker update is received
 

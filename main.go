@@ -20,7 +20,7 @@ var DEBUG bool = false
 // Set up logger to display additional information.
 var logger *log.Logger = log.New(os.Stderr, "Radarcape_listener: ", log.LstdFlags|log.Lshortfile)
 
-// Main goroutine
+// Main function (duh..)
 //
 // Entry point for the program. Instantiate all relevant variables and launch all
 // goroutines.
@@ -45,12 +45,12 @@ func main() {
 	if config.Upload_folder_path != "" {
 		go UploadFilesToSharedFolder(config, three_am_ticker)
 	} else {
-		logger.Println("main: 'upload_folder_path' not specified in config yaml file.",
+		LogInfo("main: 'upload_folder_path' not specified in config yaml file.",
 			"Saving the data locally.")
 	}
 
-	logger.Println("main: Started the radarcape listener.")
-	logger.Println(
+	LogInfo("main: Started the radarcape listener.")
+	LogInfo(
 		"main: Listening on hostname", config.Radarcape_hostname,
 		"for the following aircrafts:", config.Icao_aircraft_types,
 	)

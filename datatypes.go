@@ -30,7 +30,7 @@ func (config *Config) LoadConfiguration(file string) {
 	config_file, err := os.Open(file)
 
 	if err != nil {
-		logger.Fatal(err)
+		LogError(err)
 	}
 
 	defer config_file.Close()
@@ -38,12 +38,12 @@ func (config *Config) LoadConfiguration(file string) {
 	err = yaml.NewDecoder(config_file).Decode(config)
 
 	if err != nil {
-		logger.Fatal(err)
+		LogError(err)
 	}
 
 	if DEBUG {
-		logger.Println("GetConfiguration: config:")
-		logger.Println("GetConfiguration: ", *config)
+		LogInfo("GetConfiguration: config:")
+		LogInfo("GetConfiguration: ", *config)
 	}
 
 }
@@ -190,7 +190,7 @@ func NewTimeTicker(hour, minute, second int) *TimeTicker {
 		}
 
 		if DEBUG {
-			logger.Println("init: timer rolled over.")
+			LogInfo("init: timer rolled over.")
 		}
 
 		// Set up a ticker which triggers every 24 hours.
@@ -205,7 +205,7 @@ func NewTimeTicker(hour, minute, second int) *TimeTicker {
 				time_ticker_chan1 <- ticker_time
 
 				if DEBUG {
-					logger.Println("init: ticker rolled over.")
+					LogInfo("init: ticker rolled over.")
 				}
 
 			case <-time_halt_chan:

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -12,57 +15,92 @@ import (
 // Upload all the files of the previous day to a shared drive where a script on a local machine can
 // download them and save them to the file storage.
 func UploadFilesToSharedFolder(config Config, ticker *TimeTicker) {
-	logger.Println("UploadFilesToSharedFolder: Successfully started uploader goroutine.")
+	LogInfo("UploadFilesToSharedFolder: Successfully started uploader goroutine.")
 
 	for range ticker.Processor_tick_chan {
-		logger.Println("UploadFilesToSharedFolder: Starting data transfer to the upload folder.")
+		err := func() error {
 
-		prev_day := time.Now().AddDate(0, 0, -1)
+			LogInfo("UploadFilesToSharedFolder: Starting data transfer to the upload folder.")
 
-		// Get the data files from the last day from local storage.
-		data_folder_path := getDataFolder(prev_day)
-		files, err := ioutil.ReadDir(data_folder_path)
+			prev_day := time.Now().AddDate(0, 0, -1)
+
+			// Get the data files from the last day from local storage.
+			data_folder_path := getDataFolder(prev_day)
+			files, err := ioutil.ReadDir(data_folder_path)
+			if err != nil {
+				return err
+			}
+
+			// Set up the upload folder on the shared drive.
+			new_data_folder_path := config.Upload_folder_path + prev_day.Format(dateFormatString) + "/"
+			if err := createFolder(new_data_folder_path); err != nil {
+				return err
+			}
+
+			// Parallelize copying of all the files.
+			var error_group errgroup.Group
+
+			for _, file := range files {
+				file_name := file.Name()
+				error_group.Go(func() error {
+					return moveFile(data_folder_path+file_name, new_data_folder_path+file_name)
+				})
+			}
+
+			if err := error_group.Wait(); err != nil {
+				return err
+			}
+
+			LogInfo("UploadFilesToSharedFolder: Finished data transfer.")
+
+			// Clean up the empty folder which is left behind.
+			if err := os.Remove(data_folder_path); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+
+		// Stop the uploader goroutine if the upload fails instead of panicking
+		// and terminating the program.
 		if err != nil {
-			logger.Fatal(err)
+			LogWarnSevere(err)
+			LogWarnSevere("UploadFilesToSharedFolder: Stopping the uploader goroutine.",
+				"Please upload the data files manually and restart the application.")
+			break
 		}
 
-		// Set up the upload folder on the shared drive.
-		new_data_folder_path := config.Upload_folder_path + prev_day.Format(dateFormatString) + "/"
-		err = createFolder(new_data_folder_path)
-		if err != nil {
-			logger.Fatal(err)
-		}
-
-		// Parallelize copying of all the files.
-		// var wait_group sync.WaitGroup
-		var error_group errgroup.Group
-
-		for _, file := range files {
-			// wait_group.Add(1)
-
-			// go func(file fs.FileInfo) {
-			// 	defer wait_group.Done()
-			// 	moveFile(data_folder_path+file.Name(), new_data_folder_path+file.Name())
-			// }(file)
-			file_name := file.Name()
-			error_group.Go(func() error {
-				return moveFile(data_folder_path+file_name, new_data_folder_path+file_name)
-			})
-		}
-
-		// Wait until all files are moved to the new folder
-		// wait_group.Wait()
-		// logger.Println("UploadFilesToSharedFolder: Finished data transfer.")
-		if err := error_group.Wait(); err != nil {
-			logger.Fatal(err)
-		}
 	}
+
 }
 
-// // Moves a file at `source` to `destination`, where both paths include the filename.
-// func moveFile(source string, destination string) {
-// 	err := os.Rename(source, destination)
-// 	if err != nil {
-// 		logger.Fatal(err)
-// 	}
-// }
+// Move a file at `source` path to the `destination` path.
+//
+// GoLang: os.Rename() give error "invalid cross-device link" for Docker container with Volumes.
+// MoveFile(source, destination) will work moving file between folders
+// Source: https://gist.github.com/var23rav/23ae5d0d4d830aff886c3c970b8f6c6b
+func moveFile(sourcePath, destPath string) error {
+	inputFile, err := os.Open(sourcePath)
+	if err != nil {
+		return fmt.Errorf("couldn't open source file: %s", err)
+	}
+	defer inputFile.Close()
+
+	outputFile, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("couldn't open dest file: %s", err)
+	}
+	defer outputFile.Close()
+
+	_, err = io.Copy(outputFile, inputFile)
+
+	if err != nil {
+		return fmt.Errorf("writing to output file failed: %s", err)
+	}
+
+	// The copy was successful, so now delete the original file
+	if err = os.Remove(sourcePath); err != nil {
+		return fmt.Errorf("failed removing original file: %s", err)
+	}
+	return nil
+}

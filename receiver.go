@@ -28,7 +28,7 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 
 	aircraftlist_url := "http://" + config.Radarcape_hostname + "/aircraftlist.json"
 
-	logger.Println("GetAircraftsFromHttp: Successfully started receiver goroutine.")
+	LogInfo("GetAircraftsFromHttp: Successfully started receiver goroutine.")
 
 	for range ticker.C { // Block until new ticker update is received
 
@@ -37,7 +37,7 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 
 		// Check if the reported error is due to a read timeout.
 		if err != nil {
-			logger.Println(err)
+			LogWarn(err)
 			continue
 		}
 
@@ -67,8 +67,7 @@ func RequestAircrafList(http_client *http.Client, aircraftlist_url string) (airc
 	}
 	defer resp.Body.Close()
 
-	err = json.NewDecoder(resp.Body).Decode(&aircraft_list)
-	if err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&aircraft_list); err != nil {
 		return nil, err
 	}
 

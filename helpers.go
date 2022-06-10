@@ -4,11 +4,11 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"os/signal"
-	"os/user"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -28,12 +28,11 @@ func IsInSlice(x string, slice []string) bool {
 //
 // We place everything into a folder on the desktop for convenience sake.
 func getAppBasePath() string {
-	username, err := user.Current()
+	ex, err := os.Executable()
 	if err != nil {
-		logger.Fatal(err)
+		LogError(err)
 	}
-
-	folder_path := username.HomeDir + "/Desktop/Radarcape_listener/"
+	folder_path := filepath.Dir(ex) + "/"
 	return strings.ReplaceAll(folder_path, "\\", "/")
 }
 
@@ -53,38 +52,6 @@ func createFolder(folder_path string) error {
 	return nil
 }
 
-// Move a file at `source` path to the `destination` path.
-//
-// GoLang: os.Rename() give error "invalid cross-device link" for Docker container with Volumes.
-// MoveFile(source, destination) will work moving file between folders
-// Source: https://gist.github.com/var23rav/23ae5d0d4d830aff886c3c970b8f6c6b
-func moveFile(sourcePath, destPath string) error {
-	inputFile, err := os.Open(sourcePath)
-	if err != nil {
-		return fmt.Errorf("couldn't open source file: %s", err)
-	}
-	defer inputFile.Close()
-
-	outputFile, err := os.Create(destPath)
-	if err != nil {
-		return fmt.Errorf("couldn't open dest file: %s", err)
-	}
-	defer outputFile.Close()
-
-	_, err = io.Copy(outputFile, inputFile)
-
-	if err != nil {
-		return fmt.Errorf("writing to output file failed: %s", err)
-	}
-
-	// The copy was successful, so now delete the original file
-	err = os.Remove(sourcePath)
-	if err != nil {
-		return fmt.Errorf("failed removing original file: %s", err)
-	}
-	return nil
-}
-
 // Close interrupt handler
 //
 // If we close the program (e.g. using Ctrl+C), this function releases
@@ -94,6 +61,53 @@ func waitForCloseInterrupt() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	func() {
 		<-c
-		logger.Println("- Ctrl+C pressed in Terminal")
+		LogInfo("- Ctrl+C pressed in Terminal")
 	}()
+}
+
+// Logger functions
+//
+// Wrapper around the standard log methods which apply color
+// according to the severity.
+func LogError(v ...any) {
+	var color_reset, color_red string
+
+	if runtime.GOOS != "windows" {
+		color_reset = ""
+		color_red = ""
+	} else {
+		color_reset = "\x1b[0m"
+		color_red = "\x1b[31m"
+	}
+	logger.Fatal(color_red+"[Error]", fmt.Sprint(v...), color_reset)
+}
+
+func LogWarnSevere(v ...any) {
+	var color_reset, color_red string
+
+	if runtime.GOOS != "windows" {
+		color_reset = ""
+		color_red = ""
+	} else {
+		color_reset = "\x1b[0m"
+		color_red = "\x1b[31m"
+	}
+	logger.Println(color_red+"[WarnSevere]", fmt.Sprint(v...), color_reset)
+}
+
+func LogWarn(v ...any) {
+	var color_reset, color_yellow string
+
+	if runtime.GOOS != "windows" {
+		color_reset = ""
+		color_yellow = ""
+	} else {
+		color_reset = "\x1b[0m"
+		color_yellow = "\x1b[33m"
+	}
+	logger.Println(color_yellow+"[Warn]", fmt.Sprint(v...), color_reset)
+}
+
+func LogInfo(v ...any) {
+	logger.Println("[Info]", fmt.Sprint(v...))
 }

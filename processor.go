@@ -6,7 +6,6 @@ package main
 import (
 	"encoding/csv"
 	"errors"
-	"fmt"
 	"os"
 	"time"
 )
@@ -17,39 +16,33 @@ import (
 // output file. If the CsvGenerationLogic goroutine has generated a new set of CSV writers (due to
 // date change), the old csv files are closed and we continue to write into the new csvs.
 func ProcessAircraftData(aircraft_data_chan <-chan AircraftData, config Config, ticker *TimeTicker) {
-	aircraft_occurence_map := make(map[string]int)
-
 	csv_writers_chan := make(chan map[string]CsvWriteCloser)
 
 	go CsvGenerationLogic(csv_writers_chan, config, ticker)
 
 	csv_writers := <-csv_writers_chan
 
-	logger.Println("ProcessAircraftData: Successfully started worker goroutine.")
+	LogInfo("ProcessAircraftData: Successfully started worker goroutine.")
 
 	for {
 		select {
 		case data := <-aircraft_data_chan:
-			aircraft_occurence_map[data.Typ]++
-			fmt.Print(aircraft_occurence_map, "\r")
 
 			// Write the received data to the relevant csv
-			err := csv_writers[data.Typ].Write(data.GetDataAsList())
-			if err != nil {
-				logger.Fatal(err)
+			if err := csv_writers[data.Typ].Write(data.GetDataAsList()); err != nil {
+				LogError(err)
 			}
 
 			// Flush the buffer
 			csv_writers[data.Typ].Flush()
 
 		case new_csv_writers := <-csv_writers_chan:
+
 			for _, writer := range csv_writers {
 				writer.Close()
 			}
 			csv_writers = new_csv_writers
-			logger.Println("ProcessAircraftData: Changed csv writers in processAircaftData goroutine.")
-			// Reset the occurence map for the new day
-			aircraft_occurence_map = make(map[string]int)
+			LogInfo("ProcessAircraftData: Changed csv writers in processAircaftData goroutine.")
 		}
 
 	}
@@ -69,7 +62,7 @@ func CsvGenerationLogic(csv_writers_chan chan map[string]CsvWriteCloser, config 
 	for ticker_time := range ticker.Processor_tick_chan {
 		csv_writers_chan <- GenerateCsvWriters(time.Now(), config.Icao_aircraft_types)
 		if DEBUG {
-			logger.Println("CsvGenerationLogic: ticker rolled over:", ticker_time)
+			LogInfo("CsvGenerationLogic: ticker rolled over:", ticker_time)
 		}
 	}
 }
@@ -82,17 +75,15 @@ func CsvGenerationLogic(csv_writers_chan chan map[string]CsvWriteCloser, config 
 // in order to close the file properly after writing to it.
 func GenerateCsvWriters(date time.Time, aircrafts []string) map[string]CsvWriteCloser {
 	if DEBUG {
-		logger.Println("GenerateCsvWriters: Generating CSV files")
+		LogInfo("GenerateCsvWriters: Generating CSV files")
 	}
 
 	csv_writers := make(map[string]CsvWriteCloser, len(aircrafts))
 
 	folder_path := getDataFolder(date)
 
-	err := createFolder(folder_path)
-
-	if err != nil {
-		logger.Fatal(err)
+	if err := createFolder(folder_path); err != nil {
+		LogError(err)
 	}
 
 	for _, aircraft_type := range aircrafts {
@@ -103,13 +94,13 @@ func GenerateCsvWriters(date time.Time, aircrafts []string) map[string]CsvWriteC
 		if _, err := os.Stat(file_path); errors.Is(err, os.ErrNotExist) {
 			file_does_not_exist = true
 		} else if err != nil {
-			logger.Fatal(err)
+			LogError(err)
 		}
 
 		// Open/Create the CSV file.
 		csv_file, err := os.OpenFile(file_path, os.O_APPEND|os.O_WRONLY|os.O_CREATE, os.ModePerm)
 		if err != nil {
-			logger.Fatal(err)
+			LogError(err)
 		}
 
 		// Add the csv writer to the writers map.
@@ -119,12 +110,12 @@ func GenerateCsvWriters(date time.Time, aircrafts []string) map[string]CsvWriteC
 		if file_does_not_exist {
 			err = csv_writers[aircraft_type].Write(AircraftData{}.GetHeadersAsList())
 			if err != nil {
-				logger.Fatal(err)
+				LogError(err)
 			}
 			csv_writers[aircraft_type].Flush()
 		}
 	}
 
-	logger.Println("GenerateCsvWriters: New CSV files generated.")
+	LogInfo("GenerateCsvWriters: New CSV files generated.")
 	return csv_writers
 }

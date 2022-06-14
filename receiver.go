@@ -23,6 +23,8 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 
 	http_client := &http.Client{}
 
+	connection_established := false
+
 	// Hash map (i.e. Dict) where we store the most up to date message of each ICAO address.
 	last_received_messages := make(map[string]AircraftData)
 
@@ -38,7 +40,11 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 		// Check if the reported error is due to a read timeout.
 		if err != nil {
 			LogWarn(err)
+			connection_established = false
 			continue
+		} else if !connection_established {
+			connection_established = true
+			SignalConnectionEstablished()
 		}
 
 		// Send aircraft data to the processor goroutine.
@@ -72,4 +78,8 @@ func RequestAircrafList(http_client *http.Client, aircraftlist_url string) (airc
 	}
 
 	return
+}
+
+func SignalConnectionEstablished() {
+	LogInfo("SignalConnectionEstablished: Established a connection to the radarcape.")
 }

@@ -79,7 +79,7 @@ func LogError(v ...any) {
 		color_reset = "\x1b[0m"
 		color_red = "\x1b[31m"
 	}
-	logger.Fatal(color_red+"[Error]", fmt.Sprint(v...), color_reset)
+	logger.Fatal(color_red+"[Error]: ", fmt.Sprint(v...), color_reset)
 }
 
 func LogWarnSevere(v ...any) {
@@ -92,7 +92,7 @@ func LogWarnSevere(v ...any) {
 		color_reset = "\x1b[0m"
 		color_red = "\x1b[31m"
 	}
-	logger.Println(color_red+"[WarnSevere]", fmt.Sprint(v...), color_reset)
+	logger.Println(color_red+"[WarnSevere]: ", fmt.Sprint(v...), color_reset)
 }
 
 func LogWarn(v ...any) {
@@ -105,9 +105,9 @@ func LogWarn(v ...any) {
 		color_reset = "\x1b[0m"
 		color_yellow = "\x1b[33m"
 	}
-	logger.Println(color_yellow+"[Warn]", fmt.Sprint(v...), color_reset)
+	logger.Println(color_yellow+"[Warn]: ", fmt.Sprint(v...), color_reset)
 }
 
 func LogInfo(v ...any) {
-	logger.Println("[Info]", fmt.Sprint(v...))
+	logger.Println("[Info]: ", fmt.Sprint(v...))
 }

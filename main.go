@@ -51,8 +51,8 @@ func main() {
 
 	LogInfo("main: Started the radarcape listener.")
 	LogInfo(
-		"main: Listening on hostname", config.Radarcape_hostname,
-		"for the following aircrafts:", config.Icao_aircraft_types,
+		"main: Listening on hostname ", config.Radarcape_hostname,
+		" for the following aircrafts: ", config.Icao_aircraft_types,
 	)
 
 	waitForCloseInterrupt()

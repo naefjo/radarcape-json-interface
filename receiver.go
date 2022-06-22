@@ -41,6 +41,8 @@ func GetAircraftsFromHttp(aircraft_data_channel chan<- AircraftData,
 		if err != nil {
 			LogWarn(err)
 			connection_established = false
+			// Prevent spam on stdout.
+			time.Sleep(20 * time.Second)
 			continue
 		} else if !connection_established {
 			connection_established = true

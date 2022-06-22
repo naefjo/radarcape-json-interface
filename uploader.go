@@ -43,7 +43,7 @@ func UploadFilesToSharedFolder(config Config, ticker *TimeTicker) {
 			for _, file := range files {
 				file_name := file.Name()
 				error_group.Go(func() error {
-					return moveFile(data_folder_path+file_name, new_data_folder_path+file_name)
+					return MoveFile(data_folder_path+file_name, new_data_folder_path+file_name)
 				})
 			}
 
@@ -74,12 +74,44 @@ func UploadFilesToSharedFolder(config Config, ticker *TimeTicker) {
 
 }
 
-// Move a file at `source` path to the `destination` path.
+// Copy the file from `sourcePath` path to the `backupPath` path and then move it
+// from `sourcePath` path to the `uploadPath` path.
+func UploadFileWithBackup(sourcePath, uploadPath, backupPath string) error {
+	if err := CopyFile(sourcePath, backupPath); err != nil {
+		return err
+	}
+
+	if err := MoveFile(sourcePath, uploadPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Move a file at `sourcePath` path to the `destPath` path.
 //
 // GoLang: os.Rename() give error "invalid cross-device link" for Docker container with Volumes.
 // MoveFile(source, destination) will work moving file between folders
 // Source: https://gist.github.com/var23rav/23ae5d0d4d830aff886c3c970b8f6c6b
-func moveFile(sourcePath, destPath string) error {
+func MoveFile(sourcePath, destPath string) error {
+	if err := CopyFile(sourcePath, destPath); err != nil {
+		return fmt.Errorf("MoveFile: failed to copy file: %s", err)
+	}
+
+	// The copy was successful, so now delete the original file
+	if err := os.Remove(sourcePath); err != nil {
+		return fmt.Errorf("failed removing original file: %s", err)
+	}
+	return nil
+}
+
+// Copy a file at `sourcePath` path to the `destPath` path.
+//
+// Create a copy of a file at a given location without removing the original file.
+// We use this funciton to create a local backup of the data files just in case the
+// data upload fails.
+// Source: https://gist.github.com/var23rav/23ae5d0d4d830aff886c3c970b8f6c6b
+func CopyFile(sourcePath, destPath string) error {
 	inputFile, err := os.Open(sourcePath)
 	if err != nil {
 		return fmt.Errorf("couldn't open source file: %s", err)
@@ -92,15 +124,9 @@ func moveFile(sourcePath, destPath string) error {
 	}
 	defer outputFile.Close()
 
-	_, err = io.Copy(outputFile, inputFile)
-
-	if err != nil {
+	if _, err = io.Copy(outputFile, inputFile); err != nil {
 		return fmt.Errorf("writing to output file failed: %s", err)
 	}
 
-	// The copy was successful, so now delete the original file
-	if err = os.Remove(sourcePath); err != nil {
-		return fmt.Errorf("failed removing original file: %s", err)
-	}
 	return nil
 }

@@ -1,6 +1,7 @@
 // Data Processing logic.
 //
 // Relevant functions which are needed to process and save the received data.
+
 package main
 
 import (
@@ -28,12 +29,12 @@ func ProcessAircraftData(aircraft_data_chan <-chan AircraftData, config Config, 
 		select {
 		case data := <-aircraft_data_chan:
 
-			// Write the received data to the relevant csv
+			// Write the received data to the relevant csv.
 			if err := csv_writers[data.Typ].Write(data.GetDataAsList()); err != nil {
 				LogError(err)
 			}
 
-			// Flush the buffer
+			// Flush the buffer.
 			csv_writers[data.Typ].Flush()
 
 		case new_csv_writers := <-csv_writers_chan:
@@ -50,10 +51,7 @@ func ProcessAircraftData(aircraft_data_chan <-chan AircraftData, config Config, 
 
 // Highlevel CSV generation logic goroutine.
 //
-// This goroutine implements the logic with which new folders and csv files need to be
-// generated. We first set a timer which block the execution of the goroutine until next
-// midnight. Then, we enter the "normal" operating mode where we instantiate a ticker which
-// ticks over every 24 hours, triggering the generation of new csv files.
+// Every time the provided ticker triggers, we change the CSV writers to a new date.
 func CsvGenerationLogic(csv_writers_chan chan map[string]CsvWriteCloser, config Config, ticker *TimeTicker) {
 
 	csv_writers_chan <- GenerateCsvWriters(time.Now(), config.Icao_aircraft_types)
@@ -106,7 +104,7 @@ func GenerateCsvWriters(date time.Time, aircrafts []string) map[string]CsvWriteC
 		// Add the csv writer to the writers map.
 		csv_writers[aircraft_type] = CsvWriteCloser{csv.NewWriter(csv_file), csv_file}
 
-		// If the file was newly created we add the necessary header ot the csv file
+		// If the file was newly created we add the necessary header ot the csv file.
 		if file_does_not_exist {
 			err = csv_writers[aircraft_type].Write(AircraftData{}.GetHeadersAsList())
 			if err != nil {

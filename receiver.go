@@ -2,6 +2,7 @@
 //
 // Relevant functions and goroutines which are necessary to acquire the data from
 // the Radarcape.
+
 package main
 
 import (
@@ -12,7 +13,7 @@ import (
 
 // Radarcape data getter goroutine.
 //
-// With a frequency of 2Hz we first issue a GET request to the web server on the radarcape which
+// With a frequency specified by the ticker we first issue a GET request to the web server on the radarcape which
 // yields us a json file with the current list of all the observable aircrafts and their respective infos.
 // We then decode the json into a slice of AircraftData structs and subsequently filter out all the messages
 // which are either not of interest to us or are duplicates. The remaining messages are then posted into a
@@ -82,6 +83,10 @@ func RequestAircrafList(http_client *http.Client, aircraftlist_url string) (airc
 	return
 }
 
+// Signals that a connection to the radarcape has been established.
+//
+// Currently only a log message on stdout. Could be extended to send a startup log to polybox
+// or whatever.
 func SignalConnectionEstablished() {
 	LogInfo("SignalConnectionEstablished: Established a connection to the radarcape.")
 }

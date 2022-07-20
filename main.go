@@ -2,7 +2,7 @@
 //
 // Decoded aircraft data in the form of an aircraftlist.json is accessed over HTTP
 // and the relevant messages are saved to CSVs.
-//
+
 package main
 
 import (
@@ -18,7 +18,11 @@ const dateFormatString string = "20060102"
 var DEBUG bool = false
 
 // Set up logger to display additional information.
-var logger *log.Logger = log.New(os.Stderr, "Radarcape_listener: ", log.LstdFlags|log.Lshortfile)
+var logger *log.Logger = log.New(
+	os.Stderr,
+	"Radarcape_listener: ",
+	log.LstdFlags|log.Lshortfile,
+)
 
 // Main function (duh..)
 //
@@ -30,18 +34,25 @@ func main() {
 	config := Config{}
 	config.LoadConfiguration(cfg_filepath)
 
+	// data channel between the receiver and worker goroutine.
 	aircraft_data_channel := make(chan AircraftData, 50)
 
+	// This ticker specifies the update rate with which we poll the
+	// radarcape for new data.
 	ticker_2hz := time.NewTicker(500 * time.Millisecond)
 	defer ticker_2hz.Stop()
 
+	// Instantiate tickers which control csv generation and data uploading.
 	midnight_ticker := NewTimeTicker(0, 0, 10)
 	three_am_ticker := NewTimeTicker(3, 0, 0)
 
+	// Instantiate reveiver goroutine.
 	go GetAircraftsFromHttp(aircraft_data_channel, config, ticker_2hz)
 
+	// Instantiate worker goroutine.
 	go ProcessAircraftData(aircraft_data_channel, config, midnight_ticker)
 
+	// Instantiate uploader goroutine if a non-empty upload path was specified.
 	if config.Upload_folder_path != "" {
 		go UploadFilesToSharedFolder(config, three_am_ticker)
 	} else {

@@ -1,4 +1,5 @@
 // Various helper funcions.
+
 package main
 
 import (
@@ -36,6 +37,7 @@ func getAppBasePath() string {
 	return strings.ReplaceAll(folder_path, "\\", "/")
 }
 
+// Return the data folder path as a string which is associated with the given date.
 func getDataFolder(date time.Time) string {
 	return getAppBasePath() + "Data/" + date.Format(dateFormatString) + "/"
 }

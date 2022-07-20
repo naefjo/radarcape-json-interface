@@ -1,3 +1,5 @@
+// Datatypes and their member methods which are used throughout this project.
+
 package main
 
 import (
@@ -17,6 +19,7 @@ type Config struct {
 	Icao_aircraft_types []string `yaml:"icao_aircraft_types"`
 	Radarcape_hostname  string   `yaml:"radarcape_hostname"`
 	Upload_folder_path  string   `yaml:"upload_folder_path"`
+	Backup_folder_path  string   `yaml:"backup_folder_path"`
 }
 
 // Load configuration file from disk.
@@ -155,7 +158,7 @@ func NewTimeTicker(hour, minute, second int) *TimeTicker {
 		// Set up a timer which expires at specified time on the next day.
 		curr_time := time.Now()
 
-		// time.Date normalizes dates (e.g. Oct. 32 == Nov. 1).
+		// NOTE(@naefjo): time.Date normalizes dates (e.g. Oct. 32 == Nov. 1).
 		time_timer := time.NewTimer(
 			time.Until(
 				time.Date(
@@ -186,7 +189,7 @@ func NewTimeTicker(hour, minute, second int) *TimeTicker {
 			}
 		}()
 		if err != nil {
-			return
+			LogError(err)
 		}
 
 		if DEBUG {

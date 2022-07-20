@@ -31,10 +31,20 @@ func UploadFilesToSharedFolder(config Config, ticker *TimeTicker) {
 				return err
 			}
 
-			// Set up the upload folder on the shared drive.
-			new_data_folder_path := config.Upload_folder_path + prev_day.Format(dateFormatString) + "/"
-			if err := createFolder(new_data_folder_path); err != nil {
+			// Set up the upload folder on the shared drive and the backup folder.
+			new_data_upload_folder_path := config.Upload_folder_path + prev_day.Format(dateFormatString) + "/"
+			if err := createFolder(new_data_upload_folder_path); err != nil {
 				return err
+			}
+
+			var new_data_backup_folder_path string
+			if config.Backup_folder_path != "" {
+				new_data_backup_folder_path = config.Backup_folder_path + prev_day.Format(dateFormatString) + "/"
+				if err := createFolder(new_data_backup_folder_path); err != nil {
+					return err
+				}
+			} else {
+				LogInfo("UploadFilesToSharedFolder: No backup dir specified. Not creating any backups")
 			}
 
 			// Parallelize copying of all the files.
@@ -42,11 +52,27 @@ func UploadFilesToSharedFolder(config Config, ticker *TimeTicker) {
 
 			for _, file := range files {
 				file_name := file.Name()
+
 				error_group.Go(func() error {
-					return MoveFile(data_folder_path+file_name, new_data_folder_path+file_name)
+					// If the backup folder path in the config is not empty, we uplaod the files
+					// and create a backup. Otherwise, we just upload the files (which is equivalent
+					// to moving them).
+					if new_data_backup_folder_path != "" {
+						return UploadFileWithBackup(
+							data_folder_path+file_name,
+							new_data_upload_folder_path+file_name,
+							new_data_backup_folder_path+file_name,
+						)
+					} else {
+						return MoveFile(
+							data_folder_path+file_name,
+							new_data_upload_folder_path+file_name,
+						)
+					}
 				})
 			}
 
+			// Await until all subprocesses spawned with error group are finished.
 			if err := error_group.Wait(); err != nil {
 				return err
 			}
